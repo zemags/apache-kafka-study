@@ -208,3 +208,64 @@ bin/kafka-console-producer.sh \
 - если один брокер упал, все ок, так же будет, упавший лидер переназначится на оставшиеся два
 - если упадет второй, то третий вернет значения, но будут предупреждения что два брокера лежат
 
+### группы консьюмеров
+- все тоже самое, но один брокер, а дальше создадим топик
+```bash 
+bin/kafka-topics.sh \
+	--bootstrap-server localhost:9092 \
+	--create \
+	--replication-factor 1 \
+	--partitions 5 \
+	--topic numbers
+```
+- запуск продюсера и консьюмера
+
+- просмотр груп консьюмеров - опять же все это если чтото падает, каждый консьюмер получит сообщение от продюсера
+```bash
+- bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+```
+```bash
+bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group console-consumer-99251 --describe
+(console-consumer-99251 из команды списка полученных выше, в качестве примера)
+```
+
+- запуск второго консьюмера в той же группе консьюмеров
+```bash
+- bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic numbers --group numbers-group --from-beginning
+```
+
+- если консьюмеров больше чем партиций, то кто-то из консьюмеров будет idle
+
+### нагрузочное тестирование, production ready
+```bash
+bin/zookeeper-server-start.sh config/zookeeper.properties
+bin/kafka-server-start.sh config/server0.properties
+bin/kafka-server-start.sh config/server1.properties
+bin/kafka-server-start.sh config/server2.properties
+bin/kafka-topics.sh \
+	--bootstrap-server localhost:9092 \
+	--create \
+	--replication-factor 3 \
+	--partitions 100 \
+	--topic perf
+bin/kafka-console-consumer.sh \
+--bootstrap-server localhost:9092 \
+--topic 
+
+bin/kafka-producer-perf-test.sh \
+--topic perf \
+--num-records 1000 \ колько всего сообщений будет создано
+--throughput 100 \ в секунду сколько
+--record-size 1000 \ размер каждого сообщения 1 кб
+--producer-props bootstrap.servers=localhost:9092
+```
+
+- тест консьюмера
+```bash
+bin/kafka-consumer-perf-test.sh \
+--broker-list localhost:9092 \
+--topic perf \
+--messages 10000
+```
+
+- LAG - количество сообщений, когда консьюмер не успел еще прочитать из партиции
